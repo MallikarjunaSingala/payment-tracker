@@ -190,6 +190,41 @@ Once it's verified, `https://payments.plyvo.in` will serve the app.
 
 ---
 
+## 7. New in this update: login, filters, and statements
+
+### Login gate
+The app is now behind a simple shared-password login (middleware.js gates every
+route except `/login`). Configure via env vars:
+
+- `AUTH_USERS` — comma-separated list of allowed usernames (default: `Mallikarjuna,Raju,Naik,Shakir`)
+- `AUTH_PASSWORD` — the single shared password (default: `Sleek1@`)
+- `SESSION_SECRET` — a long random string signing the session cookie (generate with `openssl rand -hex 32`)
+
+Change the defaults by setting these in Vercel's Environment Variables (or `.env.local` for dev).
+There's no per-user data separation — all 4 users see the same data, this is just a front-door lock.
+
+### Filters
+Both the dashboard (contractors) and the contractor page (projects) now have a
+search box, a balance filter (defaults to **Outstanding balance only** — rows
+with a zero balance are hidden until you switch to "All" or "Fully settled only"),
+a status filter (Active/Closed), and sortable column headers (click to sort,
+click again to reverse).
+
+### Statements (PDF)
+"Statement" = a proper accounting ledger: every invoice and payment merged in
+date order with a running balance (Date | Description | Invoiced | Paid | Balance).
+
+- **Project statement** (`/api/statement/project/[name]`): that project's ledger only.
+- **Contractor statement** (`/api/statement/contractor/[name]`): a per-project
+  summary table plus one combined ledger across every project the contractor has,
+  tagged by project.
+
+Both are downloadable as PDF from the "Download Statement (PDF)" button on the
+contractor/project page header, or from the small download icon on any row in
+the tables. PDFs print amounts as "Rs. 12,345" rather than the ₹ symbol, since
+standard PDF fonts don't include that glyph and we didn't want a risk of it
+rendering as a broken box in a financial document.
+
 ## 7. Production notes
 
 - **Data freshness:** pages are server-rendered on every request (`export const dynamic

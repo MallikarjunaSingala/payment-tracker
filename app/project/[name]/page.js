@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { FileDown, Wallet, CheckCircle2, AlertCircle } from "lucide-react";
 import { getProject } from "@/lib/sheets";
 import { formatCurrency, formatPhone } from "@/lib/format";
 import Header from "@/components/Header";
@@ -43,19 +44,30 @@ export default async function ProjectPage({ params }) {
         subtitle={`${project.contractor} · ${formatPhone(project.phone)}`}
         backHref={`/contractor/${encodeURIComponent(project.contractor)}`}
         backLabel={project.contractor}
+        actions={
+          <a
+            href={`/api/statement/project/${encodeURIComponent(project.name)}`}
+            className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-3.5 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-indigo-700"
+          >
+            <FileDown className="h-4 w-4" />
+            Download Statement (PDF)
+          </a>
+        }
       />
       <main className="max-w-6xl mx-auto px-4 py-6 sm:py-8 space-y-8">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <StatCard label="Total Amount" value={formatCurrency(project.totalAmount)} />
+          <StatCard label="Total Amount" value={formatCurrency(project.totalAmount)} icon={Wallet} />
           <StatCard
             label="Total Payment"
             value={formatCurrency(project.totalPayment)}
             tone="positive"
+            icon={CheckCircle2}
           />
           <StatCard
             label="Balance"
             value={formatCurrency(project.balance)}
             tone={project.balance > 0 ? "negative" : "neutral"}
+            icon={AlertCircle}
           />
         </div>
 
