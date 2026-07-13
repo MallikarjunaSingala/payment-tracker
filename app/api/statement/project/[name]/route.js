@@ -20,8 +20,17 @@ export async function GET(request, { params }) {
     return NextResponse.json({ error: "Project not found." }, { status: 404 });
   }
 
-  const statement = buildProjectStatement(project);
-  const pdfBuffer = await generateProjectStatementPdf(statement);
+  let pdfBuffer;
+  try {
+    const statement = buildProjectStatement(project);
+    pdfBuffer = await generateProjectStatementPdf(statement);
+  } catch (err) {
+    console.error("PDF generation failed (project statement):", err);
+    return NextResponse.json(
+      { error: "Failed to generate PDF statement.", detail: err.message },
+      { status: 500 }
+    );
+  }
 
   const filename = `${projectName.replace(/[^a-z0-9]+/gi, "-")}-statement.pdf`;
 

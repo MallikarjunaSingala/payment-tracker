@@ -20,8 +20,17 @@ export async function GET(request, { params }) {
     return NextResponse.json({ error: "Contractor not found." }, { status: 404 });
   }
 
-  const statement = buildContractorStatement(contractor);
-  const pdfBuffer = await generateContractorStatementPdf(statement);
+  let pdfBuffer;
+  try {
+    const statement = buildContractorStatement(contractor);
+    pdfBuffer = await generateContractorStatementPdf(statement);
+  } catch (err) {
+    console.error("PDF generation failed (contractor statement):", err);
+    return NextResponse.json(
+      { error: "Failed to generate PDF statement.", detail: err.message },
+      { status: 500 }
+    );
+  }
 
   const filename = `${contractorName.replace(/[^a-z0-9]+/gi, "-")}-statement.pdf`;
 
