@@ -11,6 +11,14 @@ export async function POST(request) {
     return NextResponse.json({ error: "Invalid request." }, { status: 400 });
   }
 
+  const sessionSecret = getSessionSecret();
+  if (!sessionSecret) {
+    return NextResponse.json(
+      { error: "Login is not configured yet. Set AUTH_PASSWORD and SESSION_SECRET in the server environment." },
+      { status: 500 }
+    );
+  }
+
   const { username, password } = body || {};
   const matchedUser = validateCredentials(username, password);
 
@@ -21,7 +29,7 @@ export async function POST(request) {
   const response = NextResponse.json({ ok: true, user: matchedUser });
   const maxAge = 60 * 60 * 24 * 14; // 14 days
 
-  response.cookies.set(COOKIE_NAME, getSessionSecret(), {
+  response.cookies.set(COOKIE_NAME, sessionSecret, {
     httpOnly: true,
     secure: true,
     sameSite: "lax",
