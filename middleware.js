@@ -8,7 +8,12 @@ export function middleware(request) {
     pathname === "/login" ||
     pathname.startsWith("/api/auth/") ||
     pathname.startsWith("/_next/") ||
-    pathname === "/favicon.ico";
+    pathname === "/favicon.ico" ||
+    // Contractor self-service portal: access is controlled by a signed
+    // per-contractor token in the URL itself, not the admin session
+    // cookie, so these paths are intentionally public here.
+    pathname.startsWith("/portal/") ||
+    pathname.startsWith("/api/portal-statement/");
 
   if (isPublic) {
     return NextResponse.next();

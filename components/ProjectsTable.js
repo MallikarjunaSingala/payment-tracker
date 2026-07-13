@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search, FileDown, ChevronRight, ChevronUp, ChevronDown } from "lucide-react";
+import { Search, FileDown, ChevronRight, ChevronUp, ChevronDown, PauseCircle } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 import EmptyState from "./EmptyState";
 
@@ -16,6 +16,12 @@ const STATUS_OPTIONS = [
   { value: "all", label: "All statuses" },
   { value: "active", label: "Active only" },
   { value: "closed", label: "Closed only" },
+];
+
+const HOLD_OPTIONS = [
+  { value: "all", label: "Hold: all" },
+  { value: "hold", label: "On hold only" },
+  { value: "not-hold", label: "Not on hold" },
 ];
 
 function SortHeader({ label, sortKey, activeKey, direction, onSort, align = "left" }) {
@@ -48,6 +54,7 @@ export default function ProjectsTable({ projects }) {
   const [query, setQuery] = useState("");
   const [balanceFilter, setBalanceFilter] = useState("outstanding");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [holdFilter, setHoldFilter] = useState("all");
   const [sortKey, setSortKey] = useState("balance");
   const [sortDir, setSortDir] = useState("desc");
 
@@ -72,6 +79,8 @@ export default function ProjectsTable({ projects }) {
       if (balanceFilter === "settled" && roundedBalance !== 0) return false;
       if (statusFilter === "active" && !p.active) return false;
       if (statusFilter === "closed" && p.active) return false;
+      if (holdFilter === "hold" && !p.hold) return false;
+      if (holdFilter === "not-hold" && p.hold) return false;
       return true;
     });
 
@@ -87,7 +96,7 @@ export default function ProjectsTable({ projects }) {
     });
 
     return rows;
-  }, [projects, query, balanceFilter, statusFilter, sortKey, sortDir]);
+  }, [projects, query, balanceFilter, statusFilter, holdFilter, sortKey, sortDir]);
 
   return (
     <div>
@@ -120,6 +129,17 @@ export default function ProjectsTable({ projects }) {
             className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
           >
             {STATUS_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+          <select
+            value={holdFilter}
+            onChange={(e) => setHoldFilter(e.target.value)}
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          >
+            {HOLD_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>
                 {o.label}
               </option>
@@ -192,13 +212,20 @@ export default function ProjectsTable({ projects }) {
                     {formatCurrency(p.balance)}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap">
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                        p.active ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500"
-                      }`}
-                    >
-                      {p.active ? "Active" : "Closed"}
-                    </span>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                          p.active ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500"
+                        }`}
+                      >
+                        {p.active ? "Active" : "Closed"}
+                      </span>
+                      {p.hold ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-xs font-medium text-rose-700">
+                          <PauseCircle className="h-3 w-3" /> On Hold
+                        </span>
+                      ) : null}
+                    </div>
                   </td>
                   <td className="px-4 py-3 text-right whitespace-nowrap">
                     <div className="flex items-center justify-end gap-2">

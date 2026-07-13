@@ -25,6 +25,8 @@ Your spreadsheet has three tabs. Here's exactly how each one is used:
 | `Contact` | Phone number shown for the project and rolled up to the contractor |
 | `Employee` | Shown as "Handled by" on the project card |
 | `Last Reminded`, `BalanceRange`, `Notes` | Captured but only `Notes` is currently displayed (as a callout on the project page) |
+| `CreditLimit` | *(optional)* A contractor-level credit limit. Fill it in on **any one row** for that contractor (doesn't matter which, or fill all of them the same — the app just reads the first non-blank value per contractor). Balance ≥ 80% of this triggers "Near Limit", ≥ 100% triggers "Over Limit". Leave blank to disable the warning for that contractor. |
+| `Hold` | *(optional)* `TRUE`/`YES`/`Y`/`1` puts that project on hold. If **any** project for a contractor is on hold, the whole contractor shows an "On Hold" badge. This is a visual flag only — it doesn't block anything automatically. |
 
 The **Contractors** list on the dashboard is derived by grouping all `Customers` rows
 by their `Client` value and summing `TotalAmount` / `TotalPayment` / `DueAmount`.
@@ -194,14 +196,21 @@ Once it's verified, `https://payments.plyvo.in` will serve the app.
 
 ### Login gate
 The app is now behind a simple shared-password login (middleware.js gates every
-route except `/login`). Configure via env vars:
+route except `/login`). Configure via env vars — there are no hardcoded defaults for
+the password or session secret on purpose (the repo is public, so a default would be
+visible to anyone browsing GitHub and the login would be trivially bypassable):
 
 - `AUTH_USERS` — comma-separated list of allowed usernames (default: `Mallikarjuna,Raju,Naik,Shakir`)
-- `AUTH_PASSWORD` — the single shared password (default: `Sleek1@`)
+- `AUTH_PASSWORD` — the single shared password. **Set your own value in Vercel's
+  Environment Variables — do not use `Sleek1@`.** That password was briefly committed
+  to this public repo's git history in an earlier commit and must be treated as
+  compromised even after being removed from the code; rotate it to a new value and
+  tell your 4 users the new one.
 - `SESSION_SECRET` — a long random string signing the session cookie (generate with `openssl rand -hex 32`)
 
-Change the defaults by setting these in Vercel's Environment Variables (or `.env.local` for dev).
-There's no per-user data separation — all 4 users see the same data, this is just a front-door lock.
+There's no per-user data separation — all 4 admin users see the same data, this is
+just a front-door lock. For giving individual contractors their own limited view, see
+the **Contractor Portal** section below instead.
 
 ### Filters
 Both the dashboard (contractors) and the contractor page (projects) now have a
@@ -224,6 +233,49 @@ contractor/project page header, or from the small download icon on any row in
 the tables. PDFs print amounts as "Rs. 12,345" rather than the ₹ symbol, since
 standard PDF fonts don't include that glyph and we didn't want a risk of it
 rendering as a broken box in a financial document.
+
+### Account Hold & Credit Limit badges
+Two optional columns on the `Customers` tab (see section 1) drive a couple of
+warning badges, shown on the dashboard, the contractor page, and in the
+contractor portal:
+
+- **On Hold** — a red badge shown wherever that contractor appears, plus a
+  "Hold: on/off" filter on both the contractors and projects tables. Purely
+  visual — it doesn't block logins, statements, or anything else.
+- **Near / Over Credit Limit** — amber at ≥80% of the configured limit, red at
+  ≥100%. Only appears once you've filled in `CreditLimit` for that contractor.
+
+The dashboard also shows an "On Hold" / "Near or Over Credit Limit" count
+whenever at least one contractor is flagged.
+
+### Contractor Portal (magic links)
+Each contractor can get their own private link to see just their own invoices,
+payments, and running balance — no password, no admin login. It's a stateless
+"magic link": the token in the URL is a signed contractor name, so it can't be
+forged or reused for a different contractor, and nothing needs to be stored
+anywhere to issue or revoke it.
+
+**Setup:** set `CONTRACTOR_PORTAL_SECRET` in your environment (generate with
+`openssl rand -hex 32`). Without it, the portal is disabled everywhere.
+
+**To share a link with a contractor:** open that contractor's page in the admin
+dashboard and click **"Copy Portal Link"** in the header, then send it to them
+(WhatsApp, SMS, email — whatever you'd normally use). The link looks like
+`https://payments.plyvo.in/portal/<long-token>` and works from any device,
+indefinitely, until you change `CONTRACTOR_PORTAL_SECRET` (which invalidates
+every link at once — use that if a link needs to be revoked).
+
+**What they see:** their totals, a per-project breakdown, a combined invoice +
+payment ledger with running balance, and their own "Download Statement (PDF)"
+button. They can't see other contractors, edit anything, or log into the admin
+dashboard.
+
+**Note on "revoking" a single contractor's link:** because links are stateless,
+there's no way to invalidate just one contractor's link without changing the
+shared secret (which invalidates everyone's). If you need per-contractor
+revocation later, that requires switching to stored tokens (a new sheet tab or
+small database) rather than this signed-link approach — let me know if that
+becomes a real need.
 
 ## 7. Production notes
 
@@ -254,15 +306,23 @@ rendering as a broken box in a financial document.
 ```
 payment-tracker/
 ├── app/
-│   ├── page.js                     # Dashboard — all contractors
-│   ├── contractor/[name]/page.js   # Contractor's projects
-│   ├── project/[name]/page.js      # Project statement (invoices + payments)
+│   ├── page.js                       # Dashboard — all contractors
+│   ├── contractor/[name]/page.js     # Contractor's projects
+│   ├── project/[name]/page.js        # Project statement (invoices + payments)
+│   ├── portal/[token]/page.js        # Contractor self-service portal (magic link)
+│   ├── api/statement/...              # Admin PDF statement routes
+│   ├── api/portal-statement/[token]/  # Contractor-facing PDF statement route
 │   ├── layout.js, loading.js, error.js, not-found.js
 │   └── globals.css
-├── components/                     # UI building blocks (cards, tables, states)
+├── components/                       # UI building blocks (cards, tables, states)
 ├── lib/
-│   ├── sheets.js                   # Google Sheets auth + data fetching/aggregation
-│   └── format.js                   # Currency/date/phone formatting helpers
+│   ├── sheets.js                     # Google Sheets auth + data fetching/aggregation
+│   ├── statement.js                  # Ledger/statement building
+│   ├── pdf.js                        # PDF generation (pdfkit)
+│   ├── auth.js                       # Admin login gate
+│   ├── portalToken.js                # Signed contractor portal links
+│   └── format.js                     # Currency/date/phone formatting helpers
+├── middleware.js                     # Auth gate + public route allowlist
 ├── .env.example
 └── package.json
 ```
