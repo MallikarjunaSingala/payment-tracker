@@ -34,7 +34,7 @@ export default async function FollowUpsPage() {
 
   const { contractors, invoices, payments } = snapshot;
   const healthResults = computeContractorHealth(contractors, payments);
-  const aging = computeAging(invoices);
+  const aging = computeAging(invoices, contractors);
   const collectionEstimates = computeCollectionEstimates(contractors, payments);
   const followUpList = buildDailyFollowUpList({ healthResults, aging, collectionEstimates });
 

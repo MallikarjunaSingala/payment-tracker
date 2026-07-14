@@ -37,7 +37,7 @@ export default async function AnalyticsPage() {
   const { contractors, invoices, payments } = snapshot;
 
   const healthResults = computeContractorHealth(contractors, payments);
-  const aging = computeAging(invoices);
+  const aging = computeAging(invoices, contractors);
   const monthlyCashFlow = computeMonthlyCashFlow(invoices, payments, 12);
   const totalOutstanding = contractors.reduce((sum, c) => sum + c.totalBalance, 0);
   const collectionsTrend = computeCollectionsTrend(monthlyCashFlow, totalOutstanding);
