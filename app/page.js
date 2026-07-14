@@ -1,5 +1,16 @@
-import { Users, Wallet, CheckCircle2, AlertCircle, PauseCircle, AlertTriangle } from "lucide-react";
-import { getContractors } from "@/lib/sheets";
+import Link from "next/link";
+import {
+  Users,
+  Wallet,
+  CheckCircle2,
+  AlertCircle,
+  PauseCircle,
+  AlertTriangle,
+  BarChart3,
+  ListChecks,
+} from "lucide-react";
+import { getAnalyticsSnapshot } from "@/lib/sheets";
+import { computeContractorHealth, computeAging, computeCollectionEstimates, buildDailyFollowUpList } from "@/lib/analytics";
 import { formatCurrency } from "@/lib/format";
 import Header from "@/components/Header";
 import StatCard from "@/components/StatCard";
@@ -10,10 +21,16 @@ export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   let contractors = [];
+  let followUpCount = 0;
   let errorMessage = null;
 
   try {
-    contractors = await getContractors();
+    const snapshot = await getAnalyticsSnapshot();
+    contractors = snapshot.contractors;
+    const healthResults = computeContractorHealth(contractors, snapshot.payments);
+    const aging = computeAging(snapshot.invoices);
+    const collectionEstimates = computeCollectionEstimates(contractors, snapshot.payments);
+    followUpCount = buildDailyFollowUpList({ healthResults, aging, collectionEstimates }).length;
   } catch (err) {
     errorMessage = err.message;
   }
@@ -44,8 +61,42 @@ export default async function DashboardPage() {
 
   return (
     <div className="flex-1">
-      <Header title="Dashboard" subtitle={`${contractors.length} contractors across all projects`} />
+      <Header
+        title="Dashboard"
+        subtitle={`${contractors.length} contractors across all projects`}
+        actions={
+          <>
+            <Link
+              href="/follow-ups"
+              className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
+            >
+              <ListChecks className="h-4 w-4" />
+              Follow-Ups
+            </Link>
+            <Link
+              href="/analytics"
+              className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-3.5 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-indigo-700"
+            >
+              <BarChart3 className="h-4 w-4" />
+              Analytics
+            </Link>
+          </>
+        }
+      />
       <main className="max-w-6xl mx-auto px-4 py-6 sm:py-8">
+        {followUpCount > 0 && (
+          <Link
+            href="/follow-ups"
+            className="mb-6 flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm shadow-sm transition hover:bg-amber-100"
+          >
+            <span className="flex items-center gap-2 font-medium text-amber-800">
+              <ListChecks className="h-4 w-4" />
+              {followUpCount} contractor{followUpCount !== 1 ? "s" : ""} need follow-up today
+            </span>
+            <span className="text-amber-700 underline">View list</span>
+          </Link>
+        )}
+
         <div className="mb-6 grid grid-cols-2 sm:grid-cols-4 gap-3">
           <StatCard label="Contractors" value={contractors.length} icon={Users} />
           <StatCard label="Total Amount" value={formatCurrency(totals.totalAmount)} icon={Wallet} />
