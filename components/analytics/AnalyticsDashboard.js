@@ -99,6 +99,105 @@ function AgingTable({ aging }) {
   );
 }
 
+const THRESHOLD_OPTIONS = [
+  { value: 30, label: "30+ days pending" },
+  { value: 60, label: "60+ days pending" },
+  { value: 90, label: "90+ days pending" },
+  { value: 0, label: "Any balance (all)" },
+];
+
+function AgingDetailTable({ agingDetail }) {
+  const [threshold, setThreshold] = useState(30);
+  const [query, setQuery] = useState("");
+
+  const rows = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return agingDetail
+      .filter((r) => r.daysPending >= threshold)
+      .filter((r) => !q || r.name.toLowerCase().includes(q));
+  }, [agingDetail, threshold, query]);
+
+  const totalBalance = rows.reduce((sum, r) => sum + r.balance, 0);
+
+  return (
+    <div>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <select
+          value={threshold}
+          onChange={(e) => setThreshold(Number(e.target.value))}
+          className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-700 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+        >
+          {THRESHOLD_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+        <div className="relative w-full sm:w-56">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search contractor..."
+            className="w-full rounded-lg border border-slate-300 pl-9 pr-3 py-1.5 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          />
+        </div>
+      </div>
+      <p className="mb-2 text-xs text-slate-500">
+        {rows.length} contractor{rows.length !== 1 ? "s" : ""} · {formatCurrency(totalBalance)} total
+      </p>
+      {rows.length === 0 ? (
+        <p className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-500 shadow-sm">
+          No one matches this filter.
+        </p>
+      ) : (
+        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+          <table className="min-w-full divide-y divide-slate-200 text-sm">
+            <thead className="bg-slate-50">
+              <tr>
+                <th className="px-4 py-2 text-left font-medium text-slate-500">Contractor</th>
+                <th className="px-4 py-2 text-left font-medium text-slate-500 whitespace-nowrap">Phone</th>
+                <th className="px-4 py-2 text-right font-medium text-slate-500">Balance</th>
+                <th className="px-4 py-2 text-right font-medium text-slate-500 whitespace-nowrap">
+                  Days pending
+                </th>
+                <th className="px-4 py-2 text-left font-medium text-slate-500 whitespace-nowrap">Bucket</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {rows.map((r) => (
+                <tr key={r.name}>
+                  <td className="px-4 py-2 font-medium text-slate-800">
+                    <Link href={`/contractor/${encodeURIComponent(r.name)}`} className="hover:text-indigo-600">
+                      {r.name}
+                    </Link>
+                  </td>
+                  <td className="px-4 py-2 text-slate-500 whitespace-nowrap">{r.phone || "-"}</td>
+                  <td className="px-4 py-2 text-right font-medium text-rose-600">{formatCurrency(r.balance)}</td>
+                  <td className="px-4 py-2 text-right text-slate-700 whitespace-nowrap">{r.daysPending} days</td>
+                  <td className="px-4 py-2 whitespace-nowrap">
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                        r.bucketKey === "90+"
+                          ? "bg-rose-100 text-rose-700"
+                          : r.bucketKey === "61-90"
+                          ? "bg-amber-100 text-amber-700"
+                          : "bg-slate-100 text-slate-600"
+                      }`}
+                    >
+                      {r.bucketLabel}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function HealthList({ healthResults }) {
   const [filter, setFilter] = useState("all");
   const [query, setQuery] = useState("");
@@ -254,6 +353,7 @@ export default function AnalyticsDashboard({
   monthlyCashFlow,
   collectionsTrend,
   aging,
+  agingDetail,
   healthResults,
   collectionEstimates,
 }) {
@@ -305,6 +405,11 @@ export default function AnalyticsDashboard({
       <section>
         <h2 className="mb-3 text-sm font-semibold text-slate-700">Credit aging (outstanding invoices by age)</h2>
         <AgingTable aging={aging} />
+      </section>
+
+      <section>
+        <h2 className="mb-3 text-sm font-semibold text-slate-700">Customers with bills pending 30+ days</h2>
+        <AgingDetailTable agingDetail={agingDetail} />
       </section>
 
       <section>

@@ -2,6 +2,7 @@ import { getAnalyticsSnapshot } from "@/lib/sheets";
 import {
   computeContractorHealth,
   computeAging,
+  computeContractorAgingDetail,
   computeMonthlyCashFlow,
   computeCollectionsTrend,
   computeCollectionEstimates,
@@ -38,6 +39,7 @@ export default async function AnalyticsPage() {
 
   const healthResults = computeContractorHealth(contractors, payments);
   const aging = computeAging(invoices, contractors);
+  const agingDetail = computeContractorAgingDetail(invoices, contractors);
   const monthlyCashFlow = computeMonthlyCashFlow(invoices, payments, 12);
   const totalOutstanding = contractors.reduce((sum, c) => sum + c.totalBalance, 0);
   const collectionsTrend = computeCollectionsTrend(monthlyCashFlow, totalOutstanding);
@@ -66,6 +68,7 @@ export default async function AnalyticsPage() {
           monthlyCashFlow={monthlyCashFlow}
           collectionsTrend={collectionsTrend}
           aging={aging}
+          agingDetail={agingDetail}
           healthResults={healthResults}
           collectionEstimates={collectionEstimates}
         />
