@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Phone, Check } from "lucide-react";
 import { formatCurrency, formatPhone } from "@/lib/format";
+import { FOLLOW_UP_CATEGORIES, buildFollowUpBreakdown } from "@/lib/analytics";
 
 const SEVERITY_DOT = {
   high: "bg-rose-500",
@@ -12,6 +13,7 @@ const SEVERITY_DOT = {
 
 export default function FollowUpChecklist({ items }) {
   const [checked, setChecked] = useState(() => new Set());
+  const [category, setCategory] = useState("all");
 
   function toggle(name) {
     setChecked((prev) => {
@@ -22,18 +24,26 @@ export default function FollowUpChecklist({ items }) {
     });
   }
 
-  const doneCount = checked.size;
   const total = items.length;
+
+  const breakdown = useMemo(() => buildFollowUpBreakdown(items), [items]);
+
+  const filtered = useMemo(() => {
+    if (category === "all") return items;
+    return items.filter((item) => item.categories.includes(category));
+  }, [items, category]);
+
+  const doneCount = filtered.filter((item) => checked.has(item.name)).length;
 
   const sorted = useMemo(() => {
     // Keep checked-off items visible but sink them to the bottom.
-    return items.slice().sort((a, b) => {
+    return filtered.slice().sort((a, b) => {
       const aDone = checked.has(a.name);
       const bDone = checked.has(b.name);
       if (aDone !== bDone) return aDone ? 1 : -1;
       return 0;
     });
-  }, [items, checked]);
+  }, [filtered, checked]);
 
   if (total === 0) {
     return (
@@ -48,14 +58,41 @@ export default function FollowUpChecklist({ items }) {
 
   return (
     <div>
+      <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <button
+          onClick={() => setCategory("all")}
+          className={`rounded-xl border p-3 text-left shadow-sm transition ${
+            category === "all" ? "border-indigo-400 bg-indigo-50" : "border-slate-200 bg-white hover:bg-slate-50"
+          }`}
+        >
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-400">All</p>
+          <p className="mt-0.5 text-lg font-semibold text-slate-800">{total}</p>
+        </button>
+        {breakdown.map((b) => (
+          <button
+            key={b.key}
+            onClick={() => setCategory(b.key)}
+            disabled={b.count === 0}
+            className={`rounded-xl border p-3 text-left shadow-sm transition disabled:cursor-not-allowed disabled:opacity-40 ${
+              category === b.key ? "border-indigo-400 bg-indigo-50" : "border-slate-200 bg-white hover:bg-slate-50"
+            }`}
+          >
+            <p className="text-xs font-medium uppercase tracking-wide text-slate-400">{b.label}</p>
+            <p className="mt-0.5 text-lg font-semibold text-slate-800">{b.count}</p>
+            <p className="text-xs text-slate-500">{formatCurrency(b.totalBalance)}</p>
+          </button>
+        ))}
+      </div>
+
       <div className="mb-4 flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
         <p className="text-sm font-medium text-slate-700">
-          {doneCount} of {total} done today
+          {doneCount} of {filtered.length} done today
+          {category !== "all" ? ` · ${FOLLOW_UP_CATEGORIES.find((c) => c.key === category)?.label}` : ""}
         </p>
         <div className="h-2 w-40 overflow-hidden rounded-full bg-slate-100">
           <div
             className="h-full rounded-full bg-indigo-600 transition-all"
-            style={{ width: `${total ? (doneCount / total) * 100 : 0}%` }}
+            style={{ width: `${filtered.length ? (doneCount / filtered.length) * 100 : 0}%` }}
           />
         </div>
       </div>
